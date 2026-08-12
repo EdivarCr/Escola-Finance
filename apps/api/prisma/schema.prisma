@@ -1,0 +1,273 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum TipoEscola {
+  PARTICULAR
+  MUNICIPAL
+}
+
+enum StatusMensalidade {
+  PENDENTE
+  PAGA
+  ATRASADA
+  CANCELADA
+}
+
+enum StatusPagamento {
+  AGUARDANDO_CONFIRMACAO
+  CONFIRMADO
+  REJEITADO
+  ESTORNADO
+}
+
+enum FormaPagamento {
+  PIX
+  DINHEIRO
+  CARTAO
+  TRANSFERENCIA
+  OUTRO
+}
+
+enum UserRole {
+  OWNER
+  ADMIN
+  RESPONSAVEL
+}
+
+model Escola {
+  id   String @id @default(uuid())
+  nome String
+
+  email    String?
+  telefone String?
+  endereco String?
+
+  pixKey  String?
+  logoUrl String?
+
+  ativo Boolean @default(true)
+
+  usuarios User[]
+  alunos   Aluno[]
+  despesas Despesa[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model User {
+  id       String @id @default(uuid())
+  escolaId String
+
+  nome      String
+  email     String? @unique
+  senhaHash String
+
+  role UserRole
+
+  ativo Boolean @default(true)
+
+  escola Escola @relation(fields: [escolaId], references: [id], onDelete: Restrict)
+
+  resposavel Responsavel?
+
+  // Auditoria de pagamentos
+  pagamentosInformados Pagamento[] @relation("PagamentoInformadoPor")
+
+  pagamentosConfirmados Pagamento[] @relation("PagamentoConfirmadoPor")
+
+  pagamentosEstornados Pagamento[] @relation("PagamentoEstornadoPor")
+
+  despesasRegistradas Despesa[] @relation("DespesaRegistradaPor")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([escolaId])
+  @@index([role])
+  @@map("usuarios")
+}
+
+model Responsavel {
+  id        String @id @default(uuid())
+  usuarioId String @unique
+
+  telefone String?
+  endereco String?
+
+  usuario User @relation(fields: [usuarioId], references: [id], onDelete: Restrict)
+
+  alunos Aluno[] 
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("responsaveis")
+}
+
+model Aluno {
+  id String @id @default(uuid())
+
+  idEscola      String
+  idResponsavel String
+
+  nome      String
+  serie     Int
+  matricula String
+
+  tipoEscola TipoEscola
+
+  dataMatricula DateTime @default(now()) @db.Date
+
+  escola      Escola      @relation(fields: [idEscola], references: [id], onDelete: Restrict)
+  responsavel Responsavel @relation(fields: [idResponsavel], references: [id], onDelete: Restrict)
+
+  mensalidade Mensalidade[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([idEscola, matricula])
+  @@unique([idResponsavel])
+  @@index([idEscola])
+  @@index([idResponsavel])
+  @@index([nome])
+  @@map("alunos")
+}
+
+model Mensalidade {
+  id      String @id @default(uuid())
+
+  alunoId String
+
+  competencia DateTime @db.Date
+
+  // Valor antes de alterações específicas daquele mês.
+  valorOriginal Decimal @db.Decimal(10, 2)
+
+  // Valor que efetivamente deverá ser pago naquele mês.
+  valorCobrado Decimal @db.Decimal(10, 2)
+
+  dataVencimento DateTime @db.Date
+
+  status StatusMensalidade @default(PENDENTE)
+
+  observacao String?
+
+  aluno Aluno @relation(fields: [alunoId], references: [id], onDelete: Restrict)
+
+  pagamentos Pagamento[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Um aluno não pode possuir duas mensalidades
+  // referentes à mesma competência.
+  @@unique([alunoId, competencia])
+  @@index([alunoId])
+  @@index([competencia])
+  @@index([dataVencimento])
+  @@index([status])
+  @@map("mensalidades")
+}
+
+model Pagamento {
+  id String @id @default(uuid())
+
+  mensalidadeId String
+
+  // Usuário RESPONSAVEL que informou o pagamento.
+  informadoPorId String
+
+  // OWNER ou ADMIN que confirmou.
+  confirmadoPorId String?
+
+  // OWNER ou ADMIN que realizou eventual estorno.
+  estornadoPorId String?
+
+  valor Decimal @db.Decimal(10, 2)
+
+  formaPagamento FormaPagamento
+
+  // Data financeira:
+  // "quando o responsável efetivamente pagou"
+  dataPagamento DateTime @db.Date
+
+  status StatusPagamento @default(AGUARDANDO_CONFIRMACAO)
+
+  comprovanteUrl String?
+
+  // Momento em que o responsável informou no sistema.
+  informadoEm DateTime @default(now())
+
+  // Momento administrativo da confirmação.
+  confirmadoEm DateTime?
+
+  // Rejeição
+  rejeitadoEm    DateTime?
+  motivoRejeicao String?
+
+  // Estorno
+  estornadoEm   DateTime?
+  motivoEstorno String?
+
+  observacao String?
+
+  mensalidade Mensalidade @relation(fields: [mensalidadeId], references: [id], onDelete: Restrict)
+
+  informadoPor User @relation("PagamentoInformadoPor", fields: [informadoPorId], references: [id], onDelete: Restrict)
+
+  confirmadoPor User? @relation("PagamentoConfirmadoPor", fields: [confirmadoPorId], references: [id], onDelete: Restrict)
+
+  estornadoPor User? @relation("PagamentoEstornadoPor", fields: [estornadoPorId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([mensalidadeId])
+  @@index([informadoPorId])
+  @@index([confirmadoPorId])
+  @@index([status])
+  @@index([dataPagamento])
+  @@map("pagamentos")
+}
+
+model Despesa {
+  id String @id @default(uuid())
+
+  escolaId        String
+  registradoPorId String
+
+  descricao String
+  categoria String?
+
+  valor Decimal @db.Decimal(10, 2)
+
+  data DateTime @db.Date
+
+  observacao String?
+
+  escola Escola @relation(fields: [escolaId], references: [id], onDelete: Restrict)
+
+  registradoPor User @relation("DespesaRegistradaPor", fields: [registradoPorId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([escolaId])
+  @@index([registradoPorId])
+  @@index([data])
+  @@index([categoria])
+  @@map("despesas")
+}
