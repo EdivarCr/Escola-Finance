@@ -1,0 +1,91 @@
+# Spec 001 — Bootstrap inicial da escola e do proprietário
+
+## Contexto
+No primeiro uso do sistema, é necessário criar a escola e seu primeiro usuário com papel de **OWNER**, garantindo que esse usuário seja o responsável inicial pela administração da escola.
+
+## Objetivo
+Permitir inicializar uma escola com seu primeiro usuário OWNER de forma segura e consistente.
+
+### Requisitos Funcionais
+## RF-001 — Criar escola e OWNER
+
+O sistema deverá permitir a criação inicial de uma escola juntamente com seu usuário proprietário.
+
+### História de usuário
+
+**Como** proprietário de uma escola,
+
+**quero** cadastrar minha escola e criar minha conta de proprietário,
+
+**para** poder acessar e administrar o sistema.
+
+### Dados mínimos da escola
+
+- nome.
+
+Outros dados poderão ser adicionados futuramente, como:
+
+- CNPJ;
+- telefone;
+- endereço;
+- nome fantasia;
+- logotipo.
+
+### Dados mínimos do OWNER
+
+- nome;
+- e-mail;
+- senha.
+
+### Fluxo correto
+
+1. O usuário informa os dados da escola.
+2. O usuário informa seus dados pessoais.
+3. O sistema valida os dados recebidos.
+4. O sistema verifica se o e-mail já está cadastrado.
+5. O sistema cria a escola.
+6. O sistema gera o hash da senha.
+7. O sistema cria o usuário com papel `OWNER`.
+8. O sistema vincula o OWNER à escola.
+9. A operação é finalizada.
+
+### Fluxos incorretos
+
+#### E-mail já existente
+
+1. Usuário informa um e-mail já utilizado.
+2. Sistema identifica o conflito.
+3. Nenhuma nova escola ou usuário deve ser criado.
+4. Sistema retorna erro informando que o e-mail já está cadastrado.
+
+#### Dados obrigatórios ausentes
+
+1. Usuário omite algum campo obrigatório.
+2. A validação falha.
+3. Nenhuma informação é persistida.
+
+#### Falha durante criação do OWNER
+
+1. A escola começa a ser criada.
+2. Ocorre um erro antes da criação completa do OWNER.
+3. A transação deverá ser revertida.
+4. Nenhuma escola incompleta deverá permanecer cadastrada.
+
+### Critérios de aceitação
+
+- [ ]  Deve ser possível criar escola e OWNER em uma única operação.
+- [ ]  O OWNER deve possuir papel `OWNER`.
+- [ ]  O OWNER deve estar associado à escola criada.
+- [ ]  O e-mail deve ser único.
+- [ ]  A senha deve ser armazenada utilizando algoritmo de hash seguro com salt.
+- [ ]  A senha original deve ser validável contra o hash armazenado.
+- [ ]  A senha original nunca deve ser persistida.
+- [ ]  Uma falha em qualquer parte da criação deve cancelar toda a operação.
+- [ ]  Dados inválidos não devem gerar registros parciais.
+- [ ]  A resposta da operação não deve expor a senha nem o hash da senha.
+
+## Não objetivos (fora do escopo desta spec)
+- Convite de usuários adicionais.
+- Gestão de múltiplos proprietários no bootstrap inicial.
+- Fluxos de autenticação (login, refresh token, recuperação de senha).
+
