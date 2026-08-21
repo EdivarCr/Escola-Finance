@@ -8,4 +8,8 @@ export class PasswordHasher {
   async hash(senha: string): Promise<string> {
     return bcrypt.hash(senha, PasswordHasher.SALT_ROUNDS);
   }
+
+  async compare(senha: string, senhaHash: string): Promise<boolean> {
+    return bcrypt.compare(senha, senhaHash);
+  }
 }
